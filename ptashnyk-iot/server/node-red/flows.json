@@ -1,0 +1,237 @@
+[
+ {
+  "id": "tab_climate",
+  "type": "tab",
+  "label": "Мікроклімат пташника",
+  "disabled": false,
+  "info": "Прийом телеметрії, перевірка меж, запис в InfluxDB, тривоги, вебпанель"
+ },
+ {
+  "id": "broker",
+  "type": "mqtt-broker",
+  "name": "Mosquitto",
+  "broker": "mosquitto",
+  "port": "1883",
+  "clientid": "node-red",
+  "autoConnect": true,
+  "usetls": false,
+  "protocolVersion": "4",
+  "keepalive": "60",
+  "cleansession": true,
+  "birthTopic": "",
+  "birthQos": "0",
+  "birthPayload": "",
+  "closeTopic": "",
+  "closeQos": "0",
+  "closePayload": "",
+  "willTopic": "",
+  "willQos": "0",
+  "willPayload": ""
+ },
+ {
+  "id": "in_tel",
+  "type": "mqtt in",
+  "z": "tab_climate",
+  "name": "Телеметрія",
+  "topic": "farm/h1/+/telemetry",
+  "qos": "1",
+  "datatype": "json",
+  "broker": "broker",
+  "nl": false,
+  "rap": true,
+  "rh": 0,
+  "inputs": 0,
+  "x": 130,
+  "y": 100,
+  "wires": [
+   [
+    "fn_check",
+    "fn_influx",
+    "dbg_tel"
+   ]
+  ]
+ },
+ {
+  "id": "fn_check",
+  "type": "function",
+  "z": "tab_climate",
+  "name": "Перевірка меж",
+  "func": "// Перевірка граничних значень (розд. 2.2–2.3 звіту)\nconst d = msg.payload;\nconst zone = msg.topic.split('/')[2];\nconst problems = [];\nif (d.nh3 > 20) problems.push(`NH3 ${d.nh3} ppm > 20`);\nif (d.co2 > 3000) problems.push(`CO2 ${d.co2} ppm > 3000`);\nif (Math.abs(d.temp - d.setpoint) > 4) problems.push(`T ${d.temp} °C відхиляється від уставки ${d.setpoint} більш ніж на 4 °C`);\nif (problems.length === 0) return null;\n// не надсилати ту саму тривогу частіше ніж раз на 10 хв\nconst key = 'last_alarm_' + zone;\nconst now = Date.now();\nif (now - (context.get(key) || 0) < 600000) return null;\ncontext.set(key, now);\nmsg.topic = 'farm/h1/alarm';\nmsg.qos = 2;\nmsg.payload = { zone, time: new Date(now).toISOString(), problems };\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 360,
+  "y": 60,
+  "wires": [
+   [
+    "out_alarm",
+    "dbg_alarm"
+   ]
+  ]
+ },
+ {
+  "id": "out_alarm",
+  "type": "mqtt out",
+  "z": "tab_climate",
+  "name": "farm/h1/alarm (QoS 2)",
+  "topic": "",
+  "qos": "2",
+  "retain": "false",
+  "respTopic": "",
+  "contentType": "",
+  "userProps": "",
+  "correl": "",
+  "expiry": "",
+  "broker": "broker",
+  "x": 620,
+  "y": 40,
+  "wires": []
+ },
+ {
+  "id": "dbg_alarm",
+  "type": "debug",
+  "z": "tab_climate",
+  "name": "тривоги",
+  "active": true,
+  "tosidebar": true,
+  "console": false,
+  "tostatus": false,
+  "complete": "payload",
+  "targetType": "msg",
+  "statusVal": "",
+  "statusType": "auto",
+  "x": 580,
+  "y": 120,
+  "wires": []
+ },
+ {
+  "id": "fn_influx",
+  "type": "function",
+  "z": "tab_climate",
+  "name": "У формат InfluxDB",
+  "func": "// Запис у InfluxDB 2 (line protocol через HTTP API)\nconst d = msg.payload;\nconst zone = msg.topic.split('/')[2];\nconst f = ['temp','hum','nh3','co2','t_out','setpoint','vent_m3s','heater_w']\n  .filter(k => typeof d[k] === 'number').map(k => `${k}=${d[k]}`).join(',');\nmsg.url = env.get('INFLUX_URL') + '/api/v2/write?org=farm&bucket=climate&precision=s';\nmsg.method = 'POST';\nmsg.headers = { 'Authorization': 'Token ' + env.get('INFLUX_TOKEN'), 'Content-Type': 'text/plain' };\nmsg.payload = `climate,house=h1,zone=${zone},mode=${d.mode} ${f} ${d.ts}`;\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 370,
+  "y": 180,
+  "wires": [
+   [
+    "http_influx"
+   ]
+  ]
+ },
+ {
+  "id": "http_influx",
+  "type": "http request",
+  "z": "tab_climate",
+  "name": "InfluxDB write",
+  "method": "use",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 590,
+  "y": 180,
+  "wires": [
+   [
+    "dbg_influx"
+   ]
+  ]
+ },
+ {
+  "id": "dbg_influx",
+  "type": "debug",
+  "z": "tab_climate",
+  "name": "відповідь InfluxDB (204 = OK)",
+  "active": false,
+  "tosidebar": true,
+  "console": false,
+  "tostatus": true,
+  "complete": "statusCode",
+  "targetType": "msg",
+  "statusVal": "statusCode",
+  "statusType": "auto",
+  "x": 830,
+  "y": 180,
+  "wires": []
+ },
+ {
+  "id": "dbg_tel",
+  "type": "debug",
+  "z": "tab_climate",
+  "name": "телеметрія",
+  "active": false,
+  "tosidebar": true,
+  "console": false,
+  "tostatus": false,
+  "complete": "payload",
+  "targetType": "msg",
+  "statusVal": "",
+  "statusType": "auto",
+  "x": 350,
+  "y": 240,
+  "wires": []
+ },
+ {
+  "id": "http_panel",
+  "type": "http in",
+  "z": "tab_climate",
+  "name": "GET /panel",
+  "url": "/panel",
+  "method": "get",
+  "upload": false,
+  "swaggerDoc": "",
+  "x": 130,
+  "y": 320,
+  "wires": [
+   [
+    "tpl_panel"
+   ]
+  ]
+ },
+ {
+  "id": "tpl_panel",
+  "type": "template",
+  "z": "tab_climate",
+  "name": "Вебпанель (HTML)",
+  "field": "payload",
+  "fieldType": "msg",
+  "format": "html",
+  "syntax": "plain",
+  "template": "<!doctype html><html lang=\"uk\"><head><meta charset=\"utf-8\"><title>Пташник №1</title>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<script src=\"https://unpkg.com/mqtt@5/dist/mqtt.min.js\"></script>\n<style>body{font-family:sans-serif;margin:0;background:#eef1f5}header{background:#1f3a5f;color:#fff;padding:12px 16px}\n.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:12px}\n.c{background:#fff;border-radius:8px;padding:10px 12px}.k{font-size:12px;color:#52606d}.v{font-size:24px;font-weight:bold}\n#alarm{color:#c53030;padding:0 16px}</style></head><body>\n<header><b>Пташник №1</b> · <span id=\"st\">підключення…</span></header>\n<div class=\"g\">\n<div class=\"c\"><div class=\"k\">Температура, °C</div><div class=\"v\" id=\"temp\">–</div></div>\n<div class=\"c\"><div class=\"k\">Уставка, °C</div><div class=\"v\" id=\"setpoint\">–</div></div>\n<div class=\"c\"><div class=\"k\">NH₃, ppm</div><div class=\"v\" id=\"nh3\">–</div></div>\n<div class=\"c\"><div class=\"k\">CO₂, ppm</div><div class=\"v\" id=\"co2\">–</div></div>\n<div class=\"c\"><div class=\"k\">Вентиляція, м³/с</div><div class=\"v\" id=\"vent_m3s\">–</div></div>\n<div class=\"c\"><div class=\"k\">Нагрів, Вт</div><div class=\"v\" id=\"heater_w\">–</div></div>\n<div class=\"c\"><div class=\"k\">Режим</div><div class=\"v\" id=\"mode\">–</div></div>\n<div class=\"c\"><div class=\"k\">Нова уставка</div><input id=\"sp\" type=\"number\" step=\"0.5\" value=\"23\" style=\"width:70px\">\n<button onclick=\"setSp()\">Застосувати</button></div></div>\n<p id=\"alarm\"></p>\n<script>\n// Параметри (необов'язкові): ?broker=wss://broker.hivemq.com:8884/mqtt&base=ir45-maik/farm/h1\nconst q = new URLSearchParams(location.search);\nconst url = q.get('broker') || ('ws://' + (location.hostname || 'localhost') + ':9001');\nconst base = q.get('base') || 'farm/h1';\nconst c = mqtt.connect(url);\nc.on('connect', () => { st.textContent = 'MQTT: online'; c.subscribe([base + '/+/telemetry', base + '/alarm', base + '/+/status']); });\nc.on('message', (t, m) => {\n  const s = m.toString();\n  if (t.endsWith('/status')) { st.textContent = 'вузол: ' + s; return; }\n  const d = JSON.parse(s);\n  if (t === base + '/alarm') { alarm.textContent = 'ТРИВОГА: ' + s; return; }\n  for (const k of ['temp','setpoint','nh3','co2','vent_m3s','heater_w','mode']) document.getElementById(k).textContent = d[k];\n});\nfunction setSp() { c.publish(base + '/setpoints', JSON.stringify({temp_setpoint: +sp.value}), {qos: 1, retain: true}); }\n</script></body></html>\n",
+  "output": "str",
+  "x": 340,
+  "y": 320,
+  "wires": [
+   [
+    "resp_panel"
+   ]
+  ]
+ },
+ {
+  "id": "resp_panel",
+  "type": "http response",
+  "z": "tab_climate",
+  "name": "",
+  "statusCode": "",
+  "headers": {
+   "content-type": "text/html; charset=utf-8"
+  },
+  "x": 530,
+  "y": 320,
+  "wires": []
+ }
+]

@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "author": "Маїк Михайло",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht_in",
+      "top": -120,
+      "left": -150,
+      "attrs": {
+        "temperature": "23",
+        "humidity": "60",
+        "label": "Всередині"
+      }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht_out",
+      "top": -120,
+      "left": -50,
+      "attrs": {
+        "temperature": "-5",
+        "humidity": "80",
+        "label": "Зовні"
+      }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_nh3",
+      "top": 150,
+      "left": -230,
+      "attrs": {
+        "value": "200",
+        "label": "NH3"
+      }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_co2",
+      "top": 230,
+      "left": -230,
+      "attrs": {
+        "value": "350",
+        "label": "CO2"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_heat",
+      "top": -40,
+      "left": 230,
+      "attrs": {
+        "color": "red",
+        "label": "Нагрів"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_fan",
+      "top": 30,
+      "left": 230,
+      "attrs": {
+        "color": "blue",
+        "label": "Вентиляція"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_alarm",
+      "top": 100,
+      "left": 230,
+      "attrs": {
+        "color": "yellow",
+        "label": "Тривога"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -10,
+      "left": 170,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 60,
+      "left": 170,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 130,
+      "left": 170,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay",
+      "top": 200,
+      "left": 200,
+      "attrs": {
+        "label": "Контактор нагрівача"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX0",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX0",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "dht_in:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "dht_in:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "dht_in:SDA",
+      "esp:D4",
+      "green",
+      []
+    ],
+    [
+      "dht_out:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "dht_out:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "dht_out:SDA",
+      "esp:D15",
+      "green",
+      []
+    ],
+    [
+      "pot_nh3:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "pot_nh3:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "pot_nh3:SIG",
+      "esp:D34",
+      "orange",
+      []
+    ],
+    [
+      "pot_co2:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "pot_co2:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "pot_co2:SIG",
+      "esp:D35",
+      "orange",
+      []
+    ],
+    [
+      "esp:D25",
+      "r1:1",
+      "red",
+      []
+    ],
+    [
+      "r1:2",
+      "led_heat:A",
+      "red",
+      []
+    ],
+    [
+      "led_heat:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:D26",
+      "r2:1",
+      "blue",
+      []
+    ],
+    [
+      "r2:2",
+      "led_fan:A",
+      "blue",
+      []
+    ],
+    [
+      "led_fan:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:D27",
+      "r3:1",
+      "gold",
+      []
+    ],
+    [
+      "r3:2",
+      "led_alarm:A",
+      "gold",
+      []
+    ],
+    [
+      "led_alarm:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "relay:VCC",
+      "esp:VIN",
+      "red",
+      []
+    ],
+    [
+      "relay:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "relay:IN",
+      "esp:D23",
+      "purple",
+      []
+    ]
+  ],
+  "dependencies": {}
+}

@@ -1,0 +1,38 @@
+# Запуск усієї серверної частини та віртуального вузла однією командою:
+#   docker compose up
+# Вебпанель:  http://localhost:1880/panel     Редактор Node-RED: http://localhost:1880
+# InfluxDB:   http://localhost:8086  (admin / admin12345)
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883", "9001:9001"]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  influxdb:
+    image: influxdb:2.7
+    ports: ["8086:8086"]
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin12345
+      DOCKER_INFLUXDB_INIT_ORG: farm
+      DOCKER_INFLUXDB_INIT_BUCKET: climate
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dev-token-change-me
+
+  nodered:
+    image: nodered/node-red:4.0
+    ports: ["1880:1880"]
+    depends_on: [mosquitto, influxdb]
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: dev-token-change-me
+    volumes:
+      - ./node-red/flows.json:/data/flows.json
+
+  virtual-node:
+    image: python:3.12-slim
+    depends_on: [mosquitto]
+    working_dir: /app/virtual_node
+    volumes: ["..:/app:ro"]
+    command: sh -c "pip install -q paho-mqtt && python -u virtual_node.py --host mosquitto --interval 5 --speedup 360"
